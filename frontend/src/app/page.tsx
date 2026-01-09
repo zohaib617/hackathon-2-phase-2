@@ -1,149 +1,134 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CheckCircle2, ListTodo, Sparkles, LogIn } from 'lucide-react';
+import { CheckCircle2, ListTodo, Sparkles,  ArrowRight, Github } from 'lucide-react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
 
-/**
- * Feature data
- */
 const features = [
   {
     icon: <CheckCircle2 className="h-6 w-6" />,
-    title: 'Task Management',
-    description: 'Create, organize, and track your tasks with an intuitive interface.',
+    title: 'Smart Management',
+    description: 'Organize your daily workflow with intelligent task tracking and priority levels.',
+    color: 'bg-blue-500'
   },
   {
     icon: <ListTodo className="h-6 w-6" />,
-    title: 'Multi-User Support',
-    description: 'Collaborate with your team and share tasks seamlessly.',
+    title: 'Real-time Sync',
+    description: 'Your tasks are always in sync across all your devices and team members.',
+    color: 'bg-indigo-500'
   },
   {
     icon: <Sparkles className="h-6 w-6" />,
-    title: 'Beautiful UI',
-    description: 'Enjoy a modern, responsive design that works on all devices.',
+    title: 'Modern Experience',
+    description: 'A distraction-free interface designed for maximum focus and productivity.',
+    color: 'bg-purple-500'
   },
 ];
 
-/**
- * Feature card component
- * Displays individual feature with icon and description
- */
 interface FeatureCardProps {
-  feature: {
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-  };
+  feature: typeof features[0];
   index: number;
 }
 
 function FeatureCard({ feature, index }: FeatureCardProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.7 + index * 0.1, duration: 0.4 }}
-      className="group relative overflow-hidden rounded-2xl border border-secondary-200 bg-white p-6 shadow-soft transition-all hover:shadow-medium"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.1, duration: 0.5 }}
+      whileHover={{ y: -10 }}
+      className="group relative rounded-3xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-8 shadow-sm transition-all hover:shadow-2xl hover:shadow-indigo-500/10"
     >
-      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white">
+      <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl ${feature.color} text-white shadow-lg`}>
         {feature.icon}
       </div>
-      <h3 className="mb-2 text-lg font-semibold text-secondary-900">{feature.title}</h3>
-      <p className="text-sm text-secondary-600">{feature.description}</p>
+      <h3 className="mb-3 text-xl font-bold text-gray-900 dark:text-white">{feature.title}</h3>
+      <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{feature.description}</p>
     </motion.div>
   );
 }
 
-/**
- * Home page component
- * Landing page with hero section and feature highlights
- */
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col">
-      {/* Hero Section */}
-      <section className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-primary-50 via-white to-accent-50 px-4 py-24 sm:px-6 lg:px-8">
-        {/* Background decoration */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute left-1/2 top-0 -translate-x-1/2 blur-3xl">
-            <div className="aspect-[1155/678] w-[72.1875rem] bg-gradient-to-tr from-primary-200 to-accent-200 opacity-30" />
-          </div>
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-white dark:bg-[#09090b]">
+      {/* Premium Background Gradient */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[600px] w-full max-w-[1200px] bg-indigo-500/10 blur-[120px] rounded-full" />
+        <div className="absolute -bottom-48 -left-48 h-96 w-96 bg-purple-500/10 blur-[100px] rounded-full" />
+      </div>
 
-        {/* Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mx-auto max-w-4xl text-center"
-        >
-          {/* Badge */}
+      <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8">
+        {/* Hero Section */}
+        <section className="pt-20 pb-32 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1, duration: 0.3 }}
-            className="mb-8 inline-flex items-center gap-2 rounded-full bg-primary-100 px-4 py-2 text-sm font-medium text-primary-700"
+            className="mb-8 inline-flex items-center gap-2 rounded-full border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/50 dark:bg-indigo-500/10 px-4 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400"
           >
-            <Sparkles className="h-4 w-4" />
-            <span>Built with Next.js 16 & TypeScript</span>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+            </span>
+            New: Collaborative Workspaces
           </motion.div>
 
-          {/* Heading */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="mb-6 text-5xl font-bold tracking-tight text-secondary-900 sm:text-6xl lg:text-7xl"
+            transition={{ delay: 0.1 }}
+            className="text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-7xl"
           >
-            Manage Your Tasks
-            <br />
-            <span className="text-gradient">Efficiently & Beautifully</span>
+            Master your day, <br />
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent">
+              one task at a time.
+            </span>
           </motion.h1>
 
-          {/* Description */}
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="mb-10 text-lg text-secondary-600 sm:text-xl"
+            transition={{ delay: 0.2 }}
+            className="mt-8 text-lg leading-8 text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
           >
-            A modern, multi-user todo application with a beautiful interface.
-            <br />
-            Built with the latest web technologies for optimal performance.
+            The world's most intuitive task manager. Built for individuals who 
+            value clarity and teams that crave efficiency.
           </motion.p>
 
-          {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-            className="flex flex-col items-center justify-center gap-4 sm:flex-row"
+            transition={{ delay: 0.3 }}
+            className="mt-10 flex items-center justify-center gap-6"
           >
-            <Link href="/signup" className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-lg bg-primary-600 px-8 py-3 text-base font-semibold text-white shadow-lg transition-all hover:bg-primary-700 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2">
-              <span>Get Started</span>
-              <CheckCircle2 className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            <Link href="/signup">
+              <Button size="lg" className="h-14 px-8 rounded-full text-lg shadow-xl shadow-indigo-500/25">
+                Start for free <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
             </Link>
-
-            <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-secondary-300 bg-white px-8 py-3 text-base font-semibold text-secondary-900 transition-all hover:border-secondary-400 hover:bg-secondary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-600 focus-visible:ring-offset-2">
-              <LogIn className="h-5 w-5" />
-              <span>Login</span>
+            <Link href="https://github.com" target="_blank">
+              <Button variant="outline" size="lg" className="h-14 px-8 rounded-full text-lg dark:bg-gray-900/50">
+                <Github className="mr-2 h-5 w-5" /> Star on GitHub
+              </Button>
             </Link>
           </motion.div>
-        </motion.div>
+        </section>
 
-        {/* Feature Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.5 }}
-          className="mt-24 grid w-full max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {features.map((feature, index) => (
-            <FeatureCard key={feature.title} feature={feature} index={index} />
-          ))}
-        </motion.div>
-      </section>
+        {/* Features Section */}
+        <section className="pb-32">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature, index) => (
+              <FeatureCard key={feature.title} feature={feature} index={index} />
+            ))}
+          </div>
+        </section>
+
+        {/* Minimal Footer */}
+        <footer className="border-t border-gray-100 dark:border-gray-800 py-12 text-center text-sm text-gray-500">
+          <p>© 2026 TodoApp. Crafted with ❤️ for productive people.</p>
+        </footer>
+      </div>
     </main>
   );
 }

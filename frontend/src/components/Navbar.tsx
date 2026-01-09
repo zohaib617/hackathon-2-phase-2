@@ -69,18 +69,30 @@ export default function Navbar() {
                   <UserPlus className="h-4 w-4" />
                   Sign Up
                 </Button>
+
+                <ThemeToggle />
               </>
             ) : (
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+                <Button
+                  variant={isActive('/dashboard') ? 'secondary' : 'ghost'}
+                  onClick={() => router.push('/dashboard')}
+                >
                   Dashboard
                 </Button>
 
+                <Button
+                  variant={isActive('/tasks') ? 'secondary' : 'ghost'}
+                  onClick={() => router.push('/tasks')}
+                >
+                  Tasks
+                </Button>
+
                 <div className="flex items-center space-x-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-accent-500 text-sm font-medium text-white">
                     {user.name?.charAt(0) || user.email?.charAt(0) || 'U'}
                   </div>
-                  <span className={theme === 'dark' ? 'text-white' : 'text-gray-700'}>
+                  <span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>
                     {user.name || user.email}
                   </span>
                 </div>
@@ -132,12 +144,21 @@ export default function Navbar() {
                   </Button>
                 </>
               ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => router.push('/dashboard')}
-                >
-                  Dashboard
-                </Button>
+                <>
+                  <Button
+                    variant={isActive('/dashboard') ? 'secondary' : 'outline'}
+                    onClick={() => router.push('/dashboard')}
+                  >
+                    Dashboard
+                  </Button>
+
+                  <Button
+                    variant={isActive('/tasks') ? 'secondary' : 'outline'}
+                    onClick={() => router.push('/tasks')}
+                  >
+                    Tasks
+                  </Button>
+                </>
               )}
             </div>
           </motion.div>

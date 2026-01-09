@@ -1,13 +1,12 @@
 /**
  * Dashboard page for TodoApp.
- *FARMAR MOSTION aded
- * Protected route that displays user's tasks and overview.
+ * Enhanced with Professional UI/UX and Advanced Framer Motion Animations.
  */
 
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion" ; 
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthProvider";
 import AuthWrapper from "@/components/AuthWrapper";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -18,11 +17,23 @@ import TaskList from "@/components/TaskList";
 import FilterControls from "@/components/FilterControls";
 import SearchBar from "@/components/SearchBar";
 import { VoiceRecognition, parseVoiceCommand } from "@/lib/voiceRecognition";
+import { 
+  LayoutDashboard, 
+  CheckCircle2, 
+  Clock, 
+  Mic, 
+  MicOff, 
+  LogOut, 
+  Search, 
+  Calendar as CalendarIcon,
+  AlertCircle
+} from "lucide-react";
 
 export default function DashboardPage() {
   const { user, isLoading, signOut } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [taskSubmitting, setTaskSubmitting] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", description: "", priority: "medium" as TaskPriority });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
@@ -32,36 +43,27 @@ export default function DashboardPage() {
   const [voiceMessage, setVoiceMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize voice recognition on component mount
+  // Initializations
   useEffect(() => {
     const vr = new VoiceRecognition();
-    if (vr.isVoiceRecognitionSupported()) {
-      setVoiceRecognition(vr);
-    }
-  }, []);
-
-  // Load tasks on component mount
-  useEffect(() => {
+    if (vr.isVoiceRecognitionSupported()) setVoiceRecognition(vr);
     fetchTasks();
   }, []);
 
-  // Calculate task statistics
+  // Stats Logic
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(task => task.completed).length;
   const pendingTasks = totalTasks - completedTasks;
 
-  // Filter and search tasks
   const filteredTasks = tasks.filter(task => {
     const matchesFilter = filter === "all" ||
                          (filter === "active" && !task.completed) ||
                          (filter === "completed" && task.completed);
-
     if (!searchQuery) return matchesFilter;
-
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    return matchesFilter && matchesSearch;
+    return matchesFilter && (
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
 
   const fetchTasks = async () => {
@@ -70,9 +72,8 @@ export default function DashboardPage() {
       setError(null);
       const response = await taskService.getTasks();
       setTasks(response.tasks);
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
-      setError("Failed to load tasks. Please try again.");
+    } catch (err) {
+      setError("Failed to load tasks. Please refresh.");
     } finally {
       setLoading(false);
     }
@@ -80,351 +81,244 @@ export default function DashboardPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (editingTask) {
-      // Update existing task
-      try {
-        const updatedTask = await taskService.updateTask(editingTask.id, {
-          title: newTask.title,
-          description: newTask.description,
-          priority: newTask.priority
-        });
-
-        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setTaskSubmitting(true);
+    try {
+      if (editingTask) {
+        const updated = await taskService.updateTask(editingTask.id, newTask);
+        setTasks(tasks.map(t => t.id === updated.id ? updated : t));
         setEditingTask(null);
-        setNewTask({ title: "", description: "", priority: "medium" });
-      } catch (error) {
-        console.error("Failed to update task:", error);
-        setError("Failed to update task. Please try again.");
+      } else {
+        const created = await taskService.createTask(newTask);
+        setTasks([created, ...tasks]);
       }
-    } else {
-      // Create new task
-      try {
-        const createdTask = await taskService.createTask({
-          title: newTask.title,
-          description: newTask.description,
-          priority: newTask.priority
-        });
-
-        setTasks([...tasks, createdTask]);
-        setNewTask({ title: "", description: "", priority: "medium" });
-      } catch (error) {
-        console.error("Failed to create task:", error);
-        setError("Failed to create task. Please try again.");
-      }
+      setNewTask({ title: "", description: "", priority: "medium" });
+    } catch (err) {
+      setError("Submission failed.");
+    } finally {
+      setTaskSubmitting(false);
     }
   };
 
   const handleDelete = async (taskId: string) => {
     try {
       await taskService.deleteTask(taskId);
-      setTasks(tasks.filter(task => task.id !== taskId));
-    } catch (error) {
-      console.error("Failed to delete task:", error);
-      setError("Failed to delete task. Please try again.");
-    }
+      setTasks(tasks.filter(t => t.id !== taskId));
+    } catch (err) { setError("Delete failed."); }
   };
 
   const handleToggleComplete = async (task: Task) => {
     try {
-      const updatedTask = await taskService.toggleTaskCompletion(task.id, !task.completed);
-      setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
-    } catch (error) {
-      console.error("Failed to toggle task completion:", error);
-      setError("Failed to update task. Please try again.");
-    }
+      const updated = await taskService.toggleTaskCompletion(task.id, !task.completed);
+      setTasks(tasks.map(t => t.id === task.id ? updated : t));
+    } catch (err) { setError("Toggle failed."); }
   };
 
   const handleEdit = (task: Task) => {
     setEditingTask(task);
-    setNewTask({
-      title: task.title,
-      description: task.description || "",
-      priority: task.priority
-    });
+    setNewTask({ title: task.title, description: task.description || "", priority: task.priority });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleVoiceCommand = () => {
-    if (!voiceRecognition) {
-      setVoiceMessage("Voice recognition is not supported in your browser");
-      return;
-    }
-
+    if (!voiceRecognition) return;
     if (voiceActive) {
-      // Stop listening
       voiceRecognition.stopListening();
       setVoiceActive(false);
-      setVoiceMessage("");
       return;
     }
-
     setVoiceActive(true);
-    setVoiceMessage("Listening... Speak now");
-
+    setVoiceMessage("Listening...");
     voiceRecognition.startListening(
       (result) => {
         if (result.isFinal) {
-          setVoiceMessage(`Heard: "${result.transcript}"`);
-
           const command = parseVoiceCommand(result.transcript);
-          if (command) {
-            if (command.action === 'add') {
-              // Create a new task
-              setNewTask(prev => ({ ...prev, title: command.title }));
-              setVoiceMessage(`Adding task: "${command.title}"`);
-            } else if (command.action === 'complete') {
-              // Find and complete a task
-              const taskToComplete = tasks.find(task =>
-                task.title.toLowerCase().includes(command.title.toLowerCase())
-              );
-
-              if (taskToComplete && !taskToComplete.completed) {
-                handleToggleComplete(taskToComplete);
-                setVoiceMessage(`Completing task: "${command.title}"`);
-              } else if (taskToComplete && taskToComplete.completed) {
-                setVoiceMessage(`Task "${command.title}" is already completed`);
-              } else {
-                setVoiceMessage(`Could not find task: "${command.title}"`);
-              }
-            }
-          } else {
-            setVoiceMessage(`Command not recognized: "${result.transcript}"`);
+          if (command?.action === 'add') {
+            setNewTask(p => ({ ...p, title: command.title }));
+            setVoiceMessage(`Added: ${command.title}`);
           }
-
-          // Stop listening after processing the command
-          setTimeout(() => {
-            voiceRecognition.stopListening();
-            setVoiceActive(false);
-          }, 1000);
+          setTimeout(() => setVoiceActive(false), 1500);
         }
       },
-      (error) => {
-        console.error("Voice recognition error:", error);
-        setVoiceMessage(`Error: ${error}`);
-        setVoiceActive(false);
-      },
-      () => {
-        setVoiceActive(false);
-        if (!voiceMessage.includes("Heard:") && !voiceMessage.includes("Error:")) {
-          setVoiceMessage("");
-        }
-      }
+      () => setVoiceActive(false),
+      () => setVoiceActive(false)
     );
   };
 
+  // Professional Loading State
   if (isLoading || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-[#09090b]">
+        <div className="flex flex-col items-center gap-4">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+            className="h-12 w-12 rounded-full border-4 border-indigo-100 border-t-indigo-600"
+          />
+          <p className="text-sm font-medium text-gray-500 animate-pulse uppercase tracking-widest">Organizing Workspace...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <AuthWrapper requireAuth={true} redirectTo="/login">
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8">
-          {/* Hero Section */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-10"
-          >
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent dark:from-primary-400 dark:to-accent-400">
-              Welcome back, {user?.name || user?.email}!
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-300 mt-2">
-              Here's what's happening with your tasks today.
-            </p>
-          </motion.div>
+      <div className="min-h-screen bg-[#fafafa] dark:bg-[#0b0b0f] text-gray-900 dark:text-gray-100">
+        
+        {/* Modern Glass Nav */}
+        <nav className="sticky top-0 z-50 w-full border-b border-gray-200/50 dark:border-gray-800/50 bg-white/70 dark:bg-gray-950/70 backdrop-blur-xl">
+          <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <LayoutDashboard className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-bold text-xl tracking-tight hidden sm:block">TodoApp <span className="text-indigo-600">Pro</span></span>
+            </div>
 
-          {/* Dashboard Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              whileHover={{ y: -5 }}
-              className="cursor-pointer"
-            >
-              <Card className="h-full bg-white dark:bg-gray-800 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-gray-500 dark:text-gray-400 text-sm font-medium">
-                    All your tasks
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-                    {totalTasks}
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Total Tasks</p>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <div className="flex items-center gap-6">
+              <div className="hidden md:flex flex-col items-end">
+                <span className="text-sm font-bold leading-none">{user?.name || "Premium User"}</span>
+                <span className="text-[10px] text-gray-500 font-medium uppercase tracking-tighter">Gold Plan</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => signOut()} 
+                className="rounded-full hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 transition-colors"
+              >
+                <LogOut className="h-4 w-4 mr-2" /> Logout
+              </Button>
+            </div>
+          </div>
+        </nav>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              whileHover={{ y: -5 }}
-              className="cursor-pointer"
-            >
-              <Card className="h-full bg-white dark:bg-gray-800 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-gray-500 dark:text-gray-400 text-sm font-medium">
-                    Tasks finished
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold text-green-600 dark:text-green-400">
-                    {completedTasks}
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Completed</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              whileHover={{ y: -5 }}
-              className="cursor-pointer"
-            >
-              <Card className="h-full bg-white dark:bg-gray-800 border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-gray-500 dark:text-gray-400 text-sm font-medium">
-                    Pending tasks
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold text-yellow-600 dark:text-yellow-400">
-                    {pendingTasks}
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Pending</p>
-                </CardContent>
-              </Card>
-            </motion.div>
+        <main className="container mx-auto px-6 py-10 max-w-7xl">
+          
+          {/* Stats Section with Hover Effects */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {[
+              { label: "Total Tasks", val: totalTasks, icon: <CalendarIcon />, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
+              { label: "Completed", val: completedTasks, icon: <CheckCircle2 />, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30" },
+              { label: "Pending", val: pendingTasks, icon: <Clock />, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30" },
+            ].map((stat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ y: -4 }}
+              >
+                <Card className="border-none shadow-sm ring-1 ring-gray-200 dark:ring-gray-800 bg-white dark:bg-gray-900/50">
+                  <CardContent className="p-6 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{stat.label}</p>
+                      <h3 className={`text-3xl font-black mt-1 ${stat.color}`}>{stat.val}</h3>
+                    </div>
+                    <div className={`h-12 w-12 rounded-2xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
+                      {stat.icon}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
           </div>
 
-          {/* Task Creation Form */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mb-8"
-          >
-            <Card className="bg-white dark:bg-gray-800 border-0 shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">
-                  {editingTask ? "Edit Task" : "Create New Task"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit}>
-                  <div className="space-y-4">
-                    <Input
-                      label="Task Title"
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                      placeholder="What needs to be done?"
-                      required
-                    />
-                    <Input
-                      label="Description"
-                      value={newTask.description}
-                      onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                      placeholder="Add details..."
-                    />
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Priority
-                      </label>
-                      <select
-                        value={newTask.priority}
-                        onChange={(e) => setNewTask({...newTask, priority: e.target.value as TaskPriority})}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                      </select>
-                    </div>
-                    <div className="flex space-x-2 pt-4">
-                      <Button
-                        type="submit"
-                        className="flex-1"
-                        isLoading={loading}
-                      >
-                        {editingTask ? "Update Task" : "Add Task"}
-                      </Button>
-                      {editingTask && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingTask(null);
-                            setNewTask({ title: "", description: "", priority: "medium" });
-                          }}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            
+            {/* Left Column: Fixed Creator */}
+            <div className="lg:col-span-4">
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+                <Card className="sticky top-28 border-none shadow-2xl bg-white dark:bg-gray-900 ring-1 ring-gray-200 dark:ring-gray-800">
+                  <CardHeader className="border-b border-gray-100 dark:border-gray-800">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-indigo-600" />
+                      {editingTask ? "Edit Workspace" : "Quick Add"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Task Title</label>
+                        <Input 
+                          placeholder="What's the plan?" 
+                          value={newTask.title} 
+                          onChange={(e) => setNewTask({...newTask, title: e.target.value})} 
+                          className="h-12 bg-gray-50 dark:bg-gray-950 border-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                          required 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Description</label>
+                        <textarea
+                          placeholder="Add more details..."
+                          className="w-full rounded-xl border-none bg-gray-50 dark:bg-gray-950 p-4 text-sm focus:ring-2 focus:ring-indigo-500/50 min-h-[120px] transition-all outline-none"
+                          value={newTask.description}
+                          onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Urgency</label>
+                        <select
+                          value={newTask.priority}
+                          onChange={(e) => setNewTask({...newTask, priority: e.target.value as TaskPriority})}
+                          className="w-full rounded-xl border-none bg-gray-50 dark:bg-gray-950 p-3 text-sm focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
                         >
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Task List Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Card className="bg-white dark:bg-gray-800 border-0 shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">
-                  Your Tasks
-                </CardTitle>
-                <div className="flex space-x-2">
-                  <FilterControls filter={filter} onFilterChange={setFilter} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                {error && (
-                  <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg dark:bg-red-900/30 dark:text-red-300">
-                    {error}
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                    <SearchBar
-                      searchQuery={searchQuery}
-                      onSearchChange={setSearchQuery}
-                      placeholder="Search tasks by title or description..."
-                    />
-                    {voiceRecognition && (
-                      <Button
-                        type="button"
-                        variant={voiceActive ? "danger" : "outline"}
-                        onClick={handleVoiceCommand}
-                        className="whitespace-nowrap"
-                      >
-                        {voiceActive ? "Stop Listening" : "Voice Command"}
+                          <option value="low">Low Priority</option>
+                          <option value="medium">Medium Priority</option>
+                          <option value="high">High Priority</option>
+                        </select>
+                      </div>
+                      <Button className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 rounded-xl font-bold" isLoading={taskSubmitting}>
+                        {editingTask ? "Update Task" : "Launch Task"}
                       </Button>
-                    )}
-                  </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
 
-                  {voiceMessage && (
-                    <div className="mb-4 p-3 bg-blue-100 text-blue-700 rounded-lg dark:bg-blue-900/30 dark:text-blue-300">
-                      {voiceMessage}
-                    </div>
-                  )}
+            {/* Right Column: Dynamic Task Board */}
+            <div className="lg:col-span-8">
+              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                <div className="relative flex-1 group">
+                   <Search className="absolute left-4 top-3.5 h-4 w-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                   <div className="w-full">
+                     <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+                   </div>
+                </div>
+                <div className="flex gap-2">
+                  <FilterControls filter={filter} onFilterChange={setFilter} />
+                  <Button 
+                    variant={voiceActive ? "danger" : "outline"} 
+                    onClick={handleVoiceCommand} 
+                    className={`rounded-xl h-11 px-5 border-gray-200 dark:border-gray-800 ${voiceActive ? 'animate-pulse' : ''}`}
+                  >
+                    {voiceActive ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 mr-2" />}
+                    {!voiceActive && "Voice"}
+                  </Button>
+                </div>
+              </div>
 
+              {voiceMessage && (
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex items-center gap-2 text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                  <div className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-ping" />
+                  {voiceMessage}
+                </motion.div>
+              )}
+
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-3 border border-red-100 text-sm font-medium">
+                  <AlertCircle className="h-4 w-4" /> {error}
+                </div>
+              )}
+
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={filter + searchQuery}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <TaskList
                     tasks={filteredTasks}
                     filter={filter}
@@ -433,45 +327,11 @@ export default function DashboardPage() {
                     onDelete={handleDelete}
                     onEdit={handleEdit}
                   />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* User Profile and Logout */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-8 flex justify-end"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-accent-500 text-sm font-medium text-white">
-                  {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                </div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">
-                  {user?.name || user?.email}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    await signOut();
-                    window.location.href = "/login";
-                  } catch (error) {
-                    console.error("Logout failed:", error);
-                    // Still redirect to login even if logout API call fails
-                    window.location.href = "/login";
-                  }
-                }}
-              >
-                Logout
-              </Button>
+                </motion.div>
+              </AnimatePresence>
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </main>
       </div>
     </AuthWrapper>
   );

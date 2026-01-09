@@ -17,22 +17,24 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("system");
-
-  useEffect(() => {
-    // Get theme from localStorage or default to system preference
-    const savedTheme = localStorage.getItem("theme") as Theme | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-      setTheme(systemTheme);
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Get theme from localStorage or default to system preference on initial render
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem("theme") as Theme | null;
+      if (savedTheme) {
+        return savedTheme;
+      } else {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+        return systemTheme;
+      }
     }
-  }, []);
+    return "system"; // fallback for SSR
+  });
 
   useEffect(() => {
+    // This effect handles theme changes after initial render
     // Apply theme to document
     const root = window.document.documentElement;
 

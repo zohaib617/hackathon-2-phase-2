@@ -1,39 +1,79 @@
 /**
  * Tasks page for TodoApp.
  *
- * Displays user's tasks with CRUD operations and filtering capabilities.
+ * Displays all user tasks with filtering and search capabilities.
  */
 
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthProvider";
+import AuthWrapper from "@/components/AuthWrapper";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { taskService, Task, TaskPriority } from "@/services";
-import AuthWrapper from "@/components/AuthWrapper";
-import Spinner from "@/components/ui/Spinner";
+import TaskList from "@/components/TaskList";
+import FilterControls from "@/components/FilterControls";
+import SearchBar from "@/components/SearchBar";
+import { VoiceRecognition, parseVoiceCommand } from "@/lib/voiceRecognition";
 
 export default function TasksPage() {
+  const {  isLoading } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [taskSubmitting, setTaskSubmitting] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", description: "", priority: "medium" as TaskPriority });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceRecognition, setVoiceRecognition] = useState<VoiceRecognition | null>(null);
+  const [voiceMessage, setVoiceMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  // Initialize voice recognition on component mount
+  useEffect(() => {
+    const vr = new VoiceRecognition();
+    if (vr.isVoiceRecognitionSupported()) {
+      setVoiceRecognition(vr);
+    }
+  }, []);
 
   // Load tasks on component mount
   useEffect(() => {
     fetchTasks();
   }, []);
 
+  // Calculate task statistics
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(task => task.completed).length;
+  const pendingTasks = totalTasks - completedTasks;
+
+  // Filter and search tasks
+  const filteredTasks = tasks.filter(task => {
+    const matchesFilter = filter === "all" ||
+                         (filter === "active" && !task.completed) ||
+                         (filter === "completed" && task.completed);
+
+    if (!searchQuery) return matchesFilter;
+
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchesFilter && matchesSearch;
+  });
+
   const fetchTasks = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await taskService.getTasks();
       setTasks(response.tasks);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
+      setError("Failed to load tasks. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -41,6 +81,8 @@ export default function TasksPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    setTaskSubmitting(true);
 
     if (editingTask) {
       // Update existing task
@@ -56,6 +98,9 @@ export default function TasksPage() {
         setNewTask({ title: "", description: "", priority: "medium" });
       } catch (error) {
         console.error("Failed to update task:", error);
+        setError("Failed to update task. Please try again.");
+      } finally {
+        setTaskSubmitting(false);
       }
     } else {
       // Create new task
@@ -70,6 +115,9 @@ export default function TasksPage() {
         setNewTask({ title: "", description: "", priority: "medium" });
       } catch (error) {
         console.error("Failed to create task:", error);
+        setError("Failed to create task. Please try again.");
+      } finally {
+        setTaskSubmitting(false);
       }
     }
   };
@@ -79,7 +127,8 @@ export default function TasksPage() {
       await taskService.deleteTask(taskId);
       setTasks(tasks.filter(task => task.id !== taskId));
     } catch (error) {
-        console.error("Failed to delete task:", error);
+      console.error("Failed to delete task:", error);
+      setError("Failed to delete task. Please try again.");
     }
   };
 
@@ -89,6 +138,7 @@ export default function TasksPage() {
       setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
     } catch (error) {
       console.error("Failed to toggle task completion:", error);
+      setError("Failed to update task. Please try again.");
     }
   };
 
@@ -101,45 +151,234 @@ export default function TasksPage() {
     });
   };
 
-  const filteredTasks = tasks.filter(task => {
-    if (filter === "active") return !task.completed;
-    if (filter === "completed") return task.completed;
-    return true;
-  });
+  const handleVoiceCommand = () => {
+    if (!voiceRecognition) {
+      setVoiceMessage("Voice recognition is not supported in your browser");
+      return;
+    }
 
-  if (loading) {
+    if (voiceActive) {
+      // Stop listening
+      voiceRecognition.stopListening();
+      setVoiceActive(false);
+      setVoiceMessage("");
+      return;
+    }
+
+    setVoiceActive(true);
+    setVoiceMessage("Listening... Speak now");
+
+    voiceRecognition.startListening(
+      (result) => {
+        if (result.isFinal) {
+          setVoiceMessage(`Heard: "${result.transcript}"`);
+
+          const command = parseVoiceCommand(result.transcript);
+          if (command) {
+            if (command.action === 'add') {
+              // Create a new task
+              setNewTask(prev => ({ ...prev, title: command.title }));
+              setVoiceMessage(`Adding task: "${command.title}"`);
+            } else if (command.action === 'complete') {
+              // Find and complete a task
+              const taskToComplete = tasks.find(task =>
+                task.title.toLowerCase().includes(command.title.toLowerCase())
+              );
+
+              if (taskToComplete && !taskToComplete.completed) {
+                handleToggleComplete(taskToComplete);
+                setVoiceMessage(`Completing task: "${command.title}"`);
+              } else if (taskToComplete && taskToComplete.completed) {
+                setVoiceMessage(`Task "${command.title}" is already completed`);
+              } else {
+                setVoiceMessage(`Could not find task: "${command.title}"`);
+              }
+            } else if (command.action === 'delete') {
+              // Find and delete a task
+              const taskToDelete = tasks.find(task =>
+                task.title.toLowerCase().includes(command.title.toLowerCase())
+              );
+
+              if (taskToDelete) {
+                handleDelete(taskToDelete.id);
+                setVoiceMessage(`Deleting task: "${command.title}"`);
+              } else {
+                setVoiceMessage(`Could not find task to delete: "${command.title}"`);
+              }
+            } else if (command.action === 'priority') {
+              // Find task and update priority
+              const taskToModify = tasks.find(task =>
+                task.title.toLowerCase().includes(command.title.toLowerCase())
+              );
+
+              if (taskToModify) {
+                // Update the task priority
+                setTasks(tasks.map(task =>
+                  task.id === taskToModify.id
+                    ? { ...task, priority: command.priority || 'medium' }
+                    : task
+                ));
+                setVoiceMessage(`Set priority to ${command.priority} for task: "${command.title}"`);
+              } else {
+                setVoiceMessage(`Could not find task: "${command.title}"`);
+              }
+            }
+          } else {
+            setVoiceMessage(`Command not recognized: "${result.transcript}"`);
+          }
+
+          // Stop listening after processing the command
+          setTimeout(() => {
+            voiceRecognition.stopListening();
+            setVoiceActive(false);
+          }, 1000);
+        }
+      },
+      (error) => {
+        console.error("Voice recognition error:", error);
+        setVoiceMessage(`Error: ${error}`);
+        setVoiceActive(false);
+      },
+      () => {
+        setVoiceActive(false);
+        if (!voiceMessage.includes("Heard:") && !voiceMessage.includes("Error:")) {
+          setVoiceMessage("");
+        }
+      }
+    );
+  };
+
+  if (isLoading || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner size="lg" />
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="flex flex-col items-center"
+        >
+          <div className="h-12 w-12 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 animate-spin"></div>
+          <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">Loading your tasks...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <AuthWrapper requireAuth={true} redirectTo="/login">
-      <div className="container mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">My Tasks</h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            Manage your tasks efficiently
-          </p>
-        </motion.div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-8">
+          {/* Page Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-10"
+          >
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent dark:from-primary-400 dark:to-accent-400">
+              My Tasks
+            </h1>
+            <p className="text-lg text-gray-600 dark:text-gray-300 mt-2">
+              Manage all your tasks in one place.
+            </p>
+          </motion.div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              className="cursor-pointer"
+            >
+              <Card className="h-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                    Total Tasks
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-4xl font-bold text-blue-600 dark:text-blue-400"
+                  >
+                    {totalTasks}
+                  </motion.div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">All tasks</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              className="cursor-pointer"
+            >
+              <Card className="h-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                    Completed
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-4xl font-bold text-green-600 dark:text-green-400"
+                  >
+                    {completedTasks}
+                  </motion.div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Finished tasks</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              className="cursor-pointer"
+            >
+              <Card className="h-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                    Pending
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-4xl font-bold text-yellow-600 dark:text-yellow-400"
+                  >
+                    {pendingTasks}
+                  </motion.div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Tasks to do</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+
           {/* Task Creation Form */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.4 }}
+            className="mb-8"
+            id="task-form"
           >
-            <Card>
-              <CardHeader>
-                <CardTitle>{editingTask ? "Edit Task" : "Create New Task"}</CardTitle>
+            <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">
+                  {editingTask ? "Edit Task" : "Create New Task"}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit}>
@@ -164,7 +403,7 @@ export default function TasksPage() {
                       <select
                         value={newTask.priority}
                         onChange={(e) => setNewTask({...newTask, priority: e.target.value as TaskPriority})}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       >
                         <option value="low">Low</option>
                         <option value="medium">Medium</option>
@@ -172,20 +411,34 @@ export default function TasksPage() {
                       </select>
                     </div>
                     <div className="flex space-x-2 pt-4">
-                      <Button type="submit" className="flex-1">
-                        {editingTask ? "Update Task" : "Add Task"}
-                      </Button>
-                      {editingTask && (
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
                         <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingTask(null);
-                            setNewTask({ title: "", description: "", priority: "medium" });
-                          }}
+                          type="submit"
+                          className="flex-1"
+                          isLoading={taskSubmitting}
                         >
-                          Cancel
+                          {editingTask ? "Update Task" : "Add Task"}
                         </Button>
+                      </motion.div>
+                      {editingTask && (
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingTask(null);
+                              setNewTask({ title: "", description: "", priority: "medium" });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </motion.div>
                       )}
                     </div>
                   </div>
@@ -194,131 +447,74 @@ export default function TasksPage() {
             </Card>
           </motion.div>
 
-          {/* Task List */}
+          {/* Task List Section */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
           >
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Task List</CardTitle>
+            <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">
+                  All Tasks
+                </CardTitle>
                 <div className="flex space-x-2">
-                  <Button
-                    variant={filter === "all" ? "primary" : "outline"}
-                    size="sm"
-                    onClick={() => setFilter("all")}
-                  >
-                    All
-                  </Button>
-                  <Button
-                    variant={filter === "active" ? "primary" : "outline"}
-                    size="sm"
-                    onClick={() => setFilter("active")}
-                  >
-                    Active
-                  </Button>
-                  <Button
-                    variant={filter === "completed" ? "primary" : "outline"}
-                    size="sm"
-                    onClick={() => setFilter("completed")}
-                  >
-                    Completed
-                  </Button>
+                  <FilterControls filter={filter} onFilterChange={setFilter} />
                 </div>
               </CardHeader>
               <CardContent>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg dark:bg-red-900/30 dark:text-red-300"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+
                 <div className="space-y-4">
-                  <AnimatePresence>
-                    {filteredTasks.length === 0 ? (
+                  <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                    <SearchBar
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      placeholder="Search tasks by title or description..."
+                    />
+                    {voiceRecognition && (
                       <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="py-8 text-center text-gray-500 dark:text-gray-400"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
-                        {filter === "completed"
-                          ? "No completed tasks yet"
-                          : filter === "active"
-                          ? "No active tasks - great job!"
-                          : "No tasks yet - add one above!"}
-                      </motion.div>
-                    ) : (
-                      filteredTasks.map((task) => (
-                        <motion.div
-                          key={task.id}
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
-                          layout
-                          className={`rounded-lg border p-4 ${
-                            task.completed
-                              ? "border-green-200 bg-green-50 dark:border-green-800/50 dark:bg-green-900/20"
-                              : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
-                          }`}
+                        <Button
+                          type="button"
+                          variant={voiceActive ? "danger" : "outline"}
+                          onClick={handleVoiceCommand}
+                          className="whitespace-nowrap"
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start space-x-3">
-                              <input
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() => handleToggleComplete(task)}
-                                className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
-                              />
-                              <div>
-                                <h3
-                                  className={`font-medium ${
-                                    task.completed
-                                      ? "text-gray-500 line-through dark:text-gray-400"
-                                      : "text-gray-800 dark:text-gray-200"
-                                  }`}
-                                >
-                                  {task.title}
-                                </h3>
-                                {task.description && (
-                                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                    {task.description}
-                                  </p>
-                                )}
-                                <div className="mt-2 flex items-center space-x-4">
-                                  <span
-                                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                      task.priority === "high"
-                                        ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                                        : task.priority === "medium"
-                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                                        : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                    }`}
-                                  >
-                                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} priority
-                                  </span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : "No due date"}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEdit(task)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => handleDelete(task.id)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))
+                          {voiceActive ? "Stop Listening" : "Voice Command"}
+                        </Button>
+                      </motion.div>
                     )}
-                  </AnimatePresence>
+                  </div>
+
+                  {voiceMessage && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="mb-4 p-3 bg-blue-100 text-blue-700 rounded-lg dark:bg-blue-900/30 dark:text-blue-300"
+                    >
+                      {voiceMessage}
+                    </motion.div>
+                  )}
+
+                  <TaskList
+                    tasks={filteredTasks}
+                    filter={filter}
+                    loading={loading}
+                    onToggleComplete={handleToggleComplete}
+                    onDelete={handleDelete}
+                    onEdit={handleEdit}
+                  />
                 </div>
               </CardContent>
             </Card>

@@ -1,27 +1,46 @@
 /**
- * Voice recognition utility for TodoApp.
- *
- * Provides speech recognition functionality for voice commands.
+ * Voice recognition utility for TodoApp
+ * TS-safe + SSR-safe + Production-ready
  */
 
-interface VoiceRecognitionResult {
+export interface VoiceRecognitionResult {
   transcript: string;
   isFinal: boolean;
 }
 
-interface VoiceRecognitionOptions {
+export interface VoiceRecognitionOptions {
   continuous?: boolean;
   lang?: string;
   interimResults?: boolean;
 }
 
+/**
+ * TypeScript global fix for Web Speech API
+ */
+declare global {
+  interface Window {
+    SpeechRecognition: any; // TS ko bata do ye exist karta hai
+    webkitSpeechRecognition: any;
+  }
+}
+
+// Temporary type for recognition to avoid TS error
+type BrowserSpeechRecognition = any;
+
 export class VoiceRecognition {
-  private recognition: any;
-  private isSupported: boolean;
+  private recognition: BrowserSpeechRecognition | null = null;
+  private isSupported = false;
 
   constructor(options: VoiceRecognitionOptions = {}) {
-    // Check if the browser supports the Web Speech API
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // ✅ SSR SAFE
+    if (typeof window === 'undefined') {
+      this.isSupported = false;
+      return;
+    }
+
+    // browser support check
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       this.isSupported = false;
@@ -31,106 +50,118 @@ export class VoiceRecognition {
     this.isSupported = true;
     this.recognition = new SpeechRecognition();
 
-    // Set default options
+    // Default options
     this.recognition.continuous = options.continuous ?? false;
-    this.recognition.lang = options.lang ?? 'en-US';
-    this.recognition.interimResults = options.interimResults ?? false;
+    this.recognition.interimResults = options.interimResults ?? true;
+    this.recognition.lang = options.lang ?? 'en-PK';
   }
 
   /**
-   * Check if voice recognition is supported in the current browser
+   * Check if browser supports voice recognition
    */
   isVoiceRecognitionSupported(): boolean {
     return this.isSupported;
   }
 
   /**
-   * Start listening for voice input
+   * Start listening (must be triggered from user interaction)
    */
   startListening(
     onResult: (result: VoiceRecognitionResult) => void,
-    onError?: (error: any) => void,
+    onError?: (error: string) => void,
     onEnd?: () => void
   ): void {
-    if (!this.isSupported) {
-      throw new Error('Voice recognition is not supported in this browser');
+    if (!this.isSupported || !this.recognition) {
+      throw new Error('Voice recognition is not supported');
     }
 
     this.recognition.onresult = (event: any) => {
       const result = event.results[event.resultIndex];
-      const transcript = result[0].transcript;
-      const isFinal = result.isFinal;
+      const transcript = result?.[0]?.transcript ?? '';
+      const isFinal = result?.isFinal ?? false;
 
-      onResult({
-        transcript: transcript,
-        isFinal
-      });
+      if (!transcript.trim()) return;
+
+      onResult({ transcript, isFinal });
     };
 
     this.recognition.onerror = (event: any) => {
-      if (onError) {
-        onError(event.error);
-      }
+      if (onError) onError(event.error ?? 'Unknown voice error');
     };
 
     this.recognition.onend = () => {
-      if (onEnd) {
-        onEnd();
-      }
+      if (onEnd) onEnd();
     };
 
-    this.recognition.start();
+    try {
+      this.recognition.start();
+    } catch {
+      // prevents DOMException if start() is called twice
+    }
   }
 
   /**
-   * Stop listening for voice input
+   * Stop listening
    */
   stopListening(): void {
-    if (!this.isSupported || !this.recognition) {
-      return;
-    }
-
+    if (!this.isSupported || !this.recognition) return;
     this.recognition.stop();
   }
 
   /**
-   * Abort the current recognition and stop listening
+   * Abort listening immediately
    */
   abort(): void {
-    if (!this.isSupported || !this.recognition) {
-      return;
-    }
-
+    if (!this.isSupported || !this.recognition) return;
     this.recognition.abort();
   }
 }
 
 /**
- * Parse voice command to extract action and task title
+ * Parse voice commands
+ *
  * Supported commands:
  * - "Add task [title]"
  * - "Create task [title]"
  * - "Complete task [title]"
  * - "Mark task [title] as complete"
+ * - "Delete task [title]"
+ * - "Remove task [title]"
+ * - "Set priority [low|medium|high] for [title]"
  */
-export function parseVoiceCommand(transcript: string): { action: 'add' | 'complete', title: string } | null {
-  const trimmedTranscript = transcript.trim().toLowerCase();
+export function parseVoiceCommand(
+  transcript: string
+): { action: 'add' | 'complete' | 'delete' | 'priority'; title: string; priority?: 'low' | 'medium' | 'high' } | null {
+  const text = transcript.trim().toLowerCase();
+  if (!text) return null;
 
-  // Match "add task [title]" or "create task [title]"
-  const addMatch = trimmedTranscript.match(/^(add|create)\s+task\s+(.+)$/);
-  if (addMatch) {
-    return {
-      action: 'add',
-      title: addMatch[2].trim()
-    };
+  // ADD / CREATE
+  const addMatch = text.match(/^(add|create)\s+task\s+(.+)$/);
+  if (addMatch?.[2]) {
+    return { action: 'add', title: addMatch[2].trim() };
   }
 
-  // Match "complete task [title]" or "mark task [title] as complete"
-  const completeMatch = trimmedTranscript.match(/^(complete|mark)\s+task\s+(.+?)(\s+as\s+complete)?$/);
-  if (completeMatch) {
+  // COMPLETE / MARK AS COMPLETE
+  const completeMatch = text.match(
+    /^(complete|mark)\s+task\s+(.+?)(\s+as\s+complete)?$/
+  );
+  if (completeMatch?.[2]) {
+    return { action: 'complete', title: completeMatch[2].trim() };
+  }
+
+  // DELETE / REMOVE
+  const deleteMatch = text.match(/^(delete|remove)\s+task\s+(.+)$/);
+  if (deleteMatch?.[2]) {
+    return { action: 'delete', title: deleteMatch[2].trim() };
+  }
+
+  // SET PRIORITY
+  const priorityMatch = text.match(/^set\s+priority\s+(low|medium|high)\s+for\s+(.+)$/);
+  if (priorityMatch?.[1] && priorityMatch?.[2]) {
     return {
-      action: 'complete',
-      title: completeMatch[2].trim()
+      action: 'priority',
+      title: priorityMatch[2].trim(),
+      priority: priorityMatch[1] as 'low' | 'medium' | 'high'
     };
   }
 
