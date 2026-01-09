@@ -16,20 +16,6 @@ interface RegisterCredentials extends LoginCredentials {
   name: string;
 }
 
-interface LoginResponse {
-  user_id: string;
-  email: string;
-  name: string;
-  token: string;
-}
-
-interface RegisterResponse {
-  message: string;
-  user_id: string;
-  email: string;
-  token: string;
-}
-
 interface Session {
   user: {
     id: string;
