@@ -1,0 +1,504 @@
+openapi: 3.0.3
+info:
+  title: Multi-User Todo API
+  description: |
+    RESTful API for the Multi-User Todo Application. All endpoints require JWT authentication
+    and enforce strict user isolation - users can only access their own tasks.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: http://localhost:8000
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: tasks
+    description: Task management operations
+
+paths:
+  /api/{user_id}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+
+    get:
+      summary: List user's tasks
+      description: |
+        Retrieve all tasks owned by the authenticated user. Supports filtering by completion
+        status, priority level, and text search in title/description.
+      operationId: listTasks
+      tags:
+        - tasks
+      parameters:
+        - name: completed
+          in: query
+          description: Filter by completion status
+          required: false
+          schema:
+            type: boolean
+          example: false
+        - name: priority
+          in: query
+          description: Filter by priority level
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high]
+          example: high
+        - name: search
+          in: query
+          description: Search keyword in title or description
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          example: groceries
+      responses:
+        '200':
+          description: List of tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+              example:
+                - id: 550e8400-e29b-41d4-a716-446655440000
+                  owner_id: 123e4567-e89b-12d3-a456-426614174000
+                  title: Buy groceries
+                  description: Milk, eggs, bread
+                  priority: high
+                  due_date: 2026-01-15
+                  completed: false
+                  created_at: 2026-01-07T14:30:00Z
+                  updated_at: 2026-01-07T14:30:00Z
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create a new task
+      description: |
+        Create a new task for the authenticated user. The owner_id is automatically set
+        from the JWT token and cannot be specified in the request body.
+      operationId: createTask
+      tags:
+        - tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+            example:
+              title: Buy groceries
+              description: Milk, eggs, bread, and vegetables
+              priority: high
+              due_date: 2026-01-15
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 550e8400-e29b-41d4-a716-446655440000
+                owner_id: 123e4567-e89b-12d3-a456-426614174000
+                title: Buy groceries
+                description: Milk, eggs, bread, and vegetables
+                priority: high
+                due_date: 2026-01-15
+                completed: false
+                created_at: 2026-01-07T14:30:00Z
+                updated_at: 2026-01-07T14:30:00Z
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/{user_id}/tasks/{task_id}:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+      - $ref: '#/components/parameters/TaskIdPath'
+
+    get:
+      summary: Get a specific task
+      description: |
+        Retrieve details of a specific task. Returns 404 if the task doesn't exist
+        or if the authenticated user doesn't own it.
+      operationId: getTask
+      tags:
+        - tasks
+      responses:
+        '200':
+          description: Task retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 550e8400-e29b-41d4-a716-446655440000
+                owner_id: 123e4567-e89b-12d3-a456-426614174000
+                title: Buy groceries
+                description: Milk, eggs, bread
+                priority: high
+                due_date: 2026-01-15
+                completed: false
+                created_at: 2026-01-07T14:30:00Z
+                updated_at: 2026-01-07T14:30:00Z
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update a task
+      description: |
+        Update all fields of a task. Only the task owner can update it.
+        All fields in the request body will replace existing values.
+      operationId: updateTask
+      tags:
+        - tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+            example:
+              title: Buy groceries and cook dinner
+              description: Milk, eggs, bread, vegetables, and chicken
+              priority: medium
+              due_date: 2026-01-16
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 550e8400-e29b-41d4-a716-446655440000
+                owner_id: 123e4567-e89b-12d3-a456-426614174000
+                title: Buy groceries and cook dinner
+                description: Milk, eggs, bread, vegetables, and chicken
+                priority: medium
+                due_date: 2026-01-16
+                completed: false
+                created_at: 2026-01-07T14:30:00Z
+                updated_at: 2026-01-07T15:45:00Z
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete a task
+      description: |
+        Permanently delete a task. Only the task owner can delete it.
+        This operation cannot be undone.
+      operationId: deleteTask
+      tags:
+        - tasks
+      responses:
+        '204':
+          description: Task deleted successfully (no content)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/{user_id}/tasks/{task_id}/complete:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+      - $ref: '#/components/parameters/TaskIdPath'
+
+    patch:
+      summary: Toggle task completion status
+      description: |
+        Toggle the completion status of a task. If the task is incomplete, it will be
+        marked as complete. If it's complete, it will be marked as incomplete.
+      operationId: toggleTaskCompletion
+      tags:
+        - tasks
+      responses:
+        '200':
+          description: Task completion status toggled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 550e8400-e29b-41d4-a716-446655440000
+                owner_id: 123e4567-e89b-12d3-a456-426614174000
+                title: Buy groceries
+                description: Milk, eggs, bread
+                priority: high
+                due_date: 2026-01-15
+                completed: true
+                created_at: 2026-01-07T14:30:00Z
+                updated_at: 2026-01-07T16:00:00Z
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from Better Auth authentication.
+        Include in Authorization header as: Bearer <token>
+
+  parameters:
+    UserIdPath:
+      name: user_id
+      in: path
+      required: true
+      description: |
+        User ID from JWT token. Must match the authenticated user's ID.
+        Attempting to access another user's resources will result in 403 Forbidden.
+      schema:
+        type: string
+        format: uuid
+      example: 123e4567-e89b-12d3-a456-426614174000
+
+    TaskIdPath:
+      name: task_id
+      in: path
+      required: true
+      description: Unique identifier of the task
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - owner_id
+        - title
+        - completed
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the task
+          example: 550e8400-e29b-41d4-a716-446655440000
+        owner_id:
+          type: string
+          format: uuid
+          description: ID of the user who owns this task
+          example: 123e4567-e89b-12d3-a456-426614174000
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title (required, non-empty)
+          example: Buy groceries
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: Detailed task description (optional)
+          example: Milk, eggs, bread, and vegetables for the week
+        priority:
+          type: string
+          nullable: true
+          enum: [low, medium, high]
+          description: Task priority level (optional)
+          example: high
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: Task due date in ISO 8601 format (optional)
+          example: 2026-01-15
+        completed:
+          type: boolean
+          description: Task completion status
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when task was created
+          example: 2026-01-07T14:30:00Z
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when task was last updated
+          example: 2026-01-07T14:30:00Z
+
+    TaskCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title (required, non-empty)
+          example: Buy groceries
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: Detailed task description (optional)
+          example: Milk, eggs, bread, and vegetables
+        priority:
+          type: string
+          nullable: true
+          enum: [low, medium, high]
+          description: Task priority level (optional)
+          example: high
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: Task due date in ISO 8601 format (optional)
+          example: 2026-01-15
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title
+          example: Buy groceries and cook dinner
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: Detailed task description
+          example: Milk, eggs, bread, vegetables, and chicken
+        priority:
+          type: string
+          nullable: true
+          enum: [low, medium, high]
+          description: Task priority level
+          example: medium
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: Task due date in ISO 8601 format
+          example: 2026-01-16
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type/code
+          example: validation_error
+        message:
+          type: string
+          description: Human-readable error message
+          example: Title cannot be empty
+        details:
+          type: object
+          nullable: true
+          description: Additional error details (optional)
+          example:
+            field: title
+            constraint: non_empty
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error or malformed input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: validation_error
+            message: Title cannot be empty
+            details:
+              field: title
+              constraint: non_empty
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Missing or invalid authentication token
+
+    Forbidden:
+      description: Forbidden - valid token but insufficient permissions (user_id mismatch)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: forbidden
+            message: You do not have permission to access this resource
+
+    NotFound:
+      description: Not found - resource doesn't exist or user doesn't own it
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            message: Task not found
+
+    InternalServerError:
+      description: Internal server error - unexpected system failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: internal_server_error
+            message: An unexpected error occurred
