@@ -1,9 +1,11 @@
 /**
- * Custom Auth client for FastAPI JWT backend
- * (NO Better Auth, NO query params)
+ * Better Auth client for TodoApp Frontend.
+ *
+ * This module provides authentication functions that integrate with Better Auth.
+ * Tokens are stored in localStorage by Better Auth.
  */
 
-import apiClient, { getErrorMessage } from "./api";
+import { apiClient, getErrorMessage } from './api';
 
 interface LoginCredentials {
   email: string;
@@ -20,103 +22,99 @@ interface Session {
     email: string;
     name: string | null;
   };
-  token: string;
 }
 
+/**
+ * Better Auth client that relies on localStorage-based authentication
+ */
 export const authClient = {
-  // =====================
-  // LOGIN (JSON BODY)
-  // =====================
   signIn: {
     email: async ({ email, password }: LoginCredentials) => {
       try {
-        const response = await apiClient.post("/auth/login", {
-          email,
-          password,
-        });
+        // Use query parameters instead of request body for backend compatibility
+        const response = await apiClient.post(`/auth/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
 
-        if (typeof window !== "undefined" && response.data.token) {
-          localStorage.setItem("auth_token", response.data.token);
+        // Store token in localStorage
+        if (typeof window !== 'undefined' && response.data.token) {
+          localStorage.setItem('auth_token', response.data.token);
         }
 
         return response.data;
       } catch (error) {
         throw new Error(getErrorMessage(error));
       }
-    },
-  },
-
-  // =====================
-  // SIGNUP
-  // =====================
-  signUp: {
-    email: async ({ email, password, name }: RegisterCredentials) => {
-      try {
-        const response = await apiClient.post("/auth/register", {
-          email,
-          password,
-          name,
-        });
-
-        if (typeof window !== "undefined" && response.data.token) {
-          localStorage.setItem("auth_token", response.data.token);
-        }
-
-        return response.data;
-      } catch (error) {
-        throw new Error(getErrorMessage(error));
-      }
-    },
-  },
-
-  // =====================
-  // LOGOUT
-  // =====================
-  signOut: async () => {
-    try {
-      await apiClient.post("/auth/logout");
-    } catch {}
-
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth_token");
     }
   },
 
-  // =====================
-  // GET SESSION
-  // =====================
+  signUp: {
+    email: async ({ email, password, name }: RegisterCredentials) => {
+      try {
+        // Use query parameters instead of request body for backend compatibility
+        const response = await apiClient.post(`/auth/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&name=${encodeURIComponent(name || '')}`);
+
+        // Store token in localStorage
+        if (typeof window !== 'undefined' && response.data.token) {
+          localStorage.setItem('auth_token', response.data.token);
+        }
+
+        return response.data;
+      } catch (error) {
+        throw new Error(getErrorMessage(error));
+      }
+    }
+  },
+
+  signOut: async () => {
+    try {
+      // Call the logout endpoint if available
+      await apiClient.post('/auth/logout');
+    } catch (error) {
+      // Continue with local cleanup even if server logout fails
+      console.error('Logout error:', error);
+    }
+
+    // Clear token from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+    }
+    return Promise.resolve();
+  },
+
   getSession: async () => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("auth_token")
-        : null;
+    // Check if we have a token before making the request
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
 
     if (!token) {
+      // No token exists, so return null session without making request
       return { data: null };
     }
 
     try {
-      const response = await apiClient.get("/auth/me");
+      // The API client will automatically include the token via the request interceptor
+      const response = await apiClient.get('/auth/me');
       const userData = response.data;
 
-      if (!userData?.id) {
+      if (!userData || !userData.id) {
         return { data: null };
       }
 
       const session: Session = {
-        token,
         user: {
           id: userData.id,
           email: userData.email,
           name: userData.name,
-        },
+        }
       };
 
       return { data: session };
-    } catch {
+    } catch (error) {
+      // Session is invalid or doesn't exist
       return { data: null };
     }
-  },
+  }
 };
 
+/**
+ * Type exports for Better Auth
+ */
 export type { Session };
