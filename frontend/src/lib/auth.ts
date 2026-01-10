@@ -31,8 +31,11 @@ export const authClient = {
   signIn: {
     email: async ({ email, password }: LoginCredentials) => {
       try {
-        // Use query parameters instead of request body for backend compatibility
-        const response = await apiClient.post(`/auth/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
+        // Send credentials in request body instead of query parameters
+        const response = await apiClient.post('/auth/login', {
+          email,
+          password,
+        });
 
         // Store token in localStorage
         if (typeof window !== 'undefined' && response.data.token) {
@@ -49,8 +52,12 @@ export const authClient = {
   signUp: {
     email: async ({ email, password, name }: RegisterCredentials) => {
       try {
-        // Use query parameters instead of request body for backend compatibility
-        const response = await apiClient.post(`/auth/register?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&name=${encodeURIComponent(name || '')}`);
+        // Send credentials in request body instead of query parameters
+        const response = await apiClient.post('/auth/register', {
+          email,
+          password,
+          name,
+        });
 
         // Store token in localStorage
         if (typeof window !== 'undefined' && response.data.token) {
