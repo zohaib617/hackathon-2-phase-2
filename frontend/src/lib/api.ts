@@ -14,7 +14,7 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "ax
  * Base API URL from environment variables.
  * The backend API is mounted at /api/v1
  */
-const API_BASE_URL = process.env['NEXT_PUBLIC_API_URL'] ;
+const API_BASE_URL = process.env['NEXT_PUBLIC_API_URL'] || "https://hackathon-2-phase-2-rho.vercel.app/api/v1";
 
 /**
  * Configured Axios instance for API requests.
