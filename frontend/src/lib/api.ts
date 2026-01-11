@@ -14,8 +14,20 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "ax
  * Base API URL from environment variables.
  * The backend API is mounted at /api/v1
  */
-const API_BASE_URL = process.env["NEXT_PUBLIC_API_URL"] || process.env["NEXT_PUBLIC_VERCEL_URL"] || "";
+// src/services/api.ts
 
+const getBaseUrl = () => {
+  // 1. Pehle check karein jo aapne Vercel dashboard par manually set kiya hai
+  if (process.env['NEXT_PUBLIC_API_URL']) {
+    return process.env['NEXT_PUBLIC_API_URL'];
+  }
+  
+
+  // 3. Local development ke liye default
+  return "http://localhost:8000/api/v1";
+};
+
+const API_BASE_URL = getBaseUrl();
 /**
  * Configured Axios instance for API requests.
  */
