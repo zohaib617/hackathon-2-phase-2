@@ -107,7 +107,7 @@ export default function HomePage() {
                 Start for free <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="https://github.com" target="_blank">
+            <Link href="https://github.com/zohaib617" target="_blank">
               <Button variant="outline" size="lg" className="h-14 px-8 rounded-full text-lg dark:bg-gray-900/50">
                 <Github className="mr-2 h-5 w-5" /> Star on GitHub
               </Button>
