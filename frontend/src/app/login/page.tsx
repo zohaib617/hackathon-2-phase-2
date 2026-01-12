@@ -86,27 +86,28 @@ export default function LoginPage() {
                 <div className="relative group">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
                   <Input
-                    type="email"
-                    placeholder="name@example.com"
-                    className="pl-10 h-11 bg-white/50 dark:bg-gray-950/50 border-gray-200 focus:ring-indigo-500 transition-all"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
+                      type="email"
+                      placeholder="name@example.com"
+                      className="pl-10 h-11 bg-white/50 dark:bg-gray-950/50 border-gray-200 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 transition-all"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="relative group">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10 h-11 bg-white/50 dark:bg-gray-950/50 border-gray-200 focus:ring-indigo-500 transition-all"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-10 h-11 bg-white/50 dark:bg-gray-950/50 border-gray-200 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-indigo-500 transition-all"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
                 </div>
                 <div className="flex justify-end">
                   <Link href="#" className="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">

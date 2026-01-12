@@ -77,110 +77,110 @@ export default function SignupPage() {
             </CardTitle>
           </CardHeader>
           
-          <form onSubmit={handleSubmit}>
-            <CardContent className="px-8 space-y-5">
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-3 rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/30"
-                >
-                  <div className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
-                  {error}
-                </motion.div>
-              )}
+ <form onSubmit={handleSubmit}>
+        <CardContent className="px-8 space-y-5">
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-3 rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/30"
+            >
+              <div className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
+              {error}
+            </motion.div>
+          )}
 
-              {/* Full Name */}
-              <div className="space-y-1.5">
-                <div className="relative group">
-                  <User className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
-                  <Input
-                    label="Full Name"
-                    placeholder="Enter your name"
-                    className="pl-10 h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
+          {/* Full Name */}
+          <div className="space-y-1.5">
+            <div className="relative group">
+              <User className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
+              <Input
+                label="Full Name"
+                placeholder="Enter your name"
+                className="pl-10 h-12 bg-white/80 dark:bg-gray-950/80 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1.5">
+            <div className="relative group">
+              <Mail className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
+              <Input
+                label="Email Address"
+                type="email"
+                placeholder="name@example.com"
+                className="pl-10 h-12 bg-white/80 dark:bg-gray-950/80 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Passwords Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="relative group">
+              <Lock className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
+              <Input
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                className="pl-10 h-12 bg-white/80 dark:bg-gray-950/80 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="relative group">
+              <ShieldCheck className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
+              <Input
+                label="Confirm"
+                type="password"
+                placeholder="••••••••"
+                className="pl-10 h-12 bg-white/80 dark:bg-gray-950/80 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex flex-col gap-5 px-8 pt-6 pb-10">
+          <Button
+            type="submit"
+            className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-500/25 transition-all text-base font-semibold"
+            disabled={loading}
+          >
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Creating account...
               </div>
-
-              {/* Email */}
-              <div className="space-y-1.5">
-                <div className="relative group">
-                  <Mail className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
-                  <Input
-                    label="Email Address"
-                    type="email"
-                    placeholder="name@example.com"
-                    className="pl-10 h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                Create Account <ArrowRight className="h-5 w-5" />
               </div>
+            )}
+          </Button>
 
-              {/* Passwords Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
-                  <Input
-                    label="Password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10 h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="relative group">
-                  <ShieldCheck className="absolute left-3 top-[38px] h-4.5 w-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
-                  <Input
-                    label="Confirm"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10 h-12 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-            </CardContent>
-
-            <CardFooter className="flex flex-col gap-5 px-8 pt-6 pb-10">
-              <Button
-                type="submit"
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-500/25 transition-all text-base font-semibold"
-                disabled={loading}
+          <div className="text-center">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Already have an account?{" "}
+              <Link
+                href="/login"
+                className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
               >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    Creating account...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    Create Account <ArrowRight className="h-5 w-5" />
-                  </div>
-                )}
-              </Button>
-
-              <div className="text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Already have an account?{" "}
-                  <Link
-                    href="/login"
-                    className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
-                  >
-                    Sign in here
-                  </Link>
-                </p>
-              </div>
-            </CardFooter>
-          </form>
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        </CardFooter>
+      </form>
         </Card>
 
         <p className="mt-8 text-center text-xs text-gray-400 dark:text-gray-600 tracking-wide uppercase">
