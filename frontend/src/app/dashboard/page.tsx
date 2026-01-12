@@ -238,13 +238,13 @@ export default function DashboardPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Task Title</label>
-                        <Input 
-                          placeholder="What's the plan?" 
-                          value={newTask.title} 
-                          onChange={(e) => setNewTask({...newTask, title: e.target.value})} 
-                          className="h-12 bg-gray-50 dark:bg-gray-950 border-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-                          required 
-                        />
+                  <Input 
+                    placeholder="What's the plan?" 
+                    value={newTask.title} 
+                    onChange={(e) => setNewTask({...newTask, title: e.target.value})} 
+                    className="h-12 bg-gray-50 dark:bg-gray-950 border-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                    required 
+                  />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Description</label>
